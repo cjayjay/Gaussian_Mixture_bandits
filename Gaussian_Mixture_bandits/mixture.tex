@@ -1,0 +1,163 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+% \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading nips_2016
+%
+% to avoid loading the natbib package, add option nonatbib:
+%\usepackage[nonatbib]{nips_2016}
+
+\usepackage[final]{nips_2016}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+\usepackage{cite}
+\usepackage[boxruled]{algorithm2e}
+\usepackage{algorithmic}
+
+\title{ A Two Level Mixture Model for Bandits }
+
+
+\author{
+   Guowei Sun  \\ Mathematicas \\ gwsun@math.umd.edu
+   \And 
+   Cheng Jie \\Mathematics \\cjie@math.umd.edu
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  We propose a two level mixture model to exploit the similarity between arms in an online manner, where similar arms will be clusterred together to shrink the exploration space. We define a general, flexible bayesian mixture model which enables the usage of state-of-the-art bayesian upper confidence bounds. We prove an upper bound on the regret. We demonstrate that the estimation of cluster and arm parameters can be efficiently solved by a natural extension of the Expectation-Maximization algorithm. Finally, we apply our framework to both continuous and binary simulation experiments.
+\end{abstract}
+
+\section{Introduction}
+In multi-armed bandits problems, one central goal is to utilize structures in arms to 1) solve difficult problems or 2) further minimize regrets. Most work is focused on using known information. Lipshitz bandits\citep{lip1},\citep{slivkins} assumed lipshitiz reward functions and discretized the arms space to solve uncountably many arms problem. Spectral bandits uses a given similarity graph to represent the pair-wise similarity information on arms, and assumed a smooth function on this graph to extract more information every time an arm is played\citep{spectral}. Gaussian bandits assumed a correlated gaussian prior on the expected rewards. Therefore, the rewards from one arm will give information about rewards on all arms\citep{gaussian}.\\
+There are some works that learns the structure between arms in an online manner. Gentile et al proposed to dynamically cluster the arms on a graph as samples are collected\citep{online}.  \\
+In our project, we propose a two level mixture model which is capable of utilizing known information and learning certain structure between arms. We assume arms with similar rewards can be clustered together, the expected rewards on each cluster is generated from one common distribution. In our algorithm, we first select a promising cluster, then select an arm within that cluster.  We show that this will give better upper bound on the bayes regret, and performs better on simulated experiments compared to popular bandit algorithms.
+ 
+\section{ Mixture Models }
+Mixture models are commonly used to cluster data\citep{mixtureclustering}, to track objects in images\citep{cvprmixture}. It is very powerful in discovering similarities between data points. 
+
+\subsection{ A Two Level Mixture Model }
+Given $K$ arms, each with expected reward $\mu_k$. Assume the prior on the $\mu$ is a mixture model, where each model $f_j(,\alpha_j)$ is a distribution parameterized by $\alpha_j$. Let $\pi_j$ to be the probability of $\mu$ generated from the $j$th model, the prior distribution would be
+\begin{equation}
+\mu \sim \sum\limits_{j=1}^C \pi_j f_j(\mu,\alpha_j)
+\end{equation}
+Introduce a latent variable, or label function $c(\mu):\mathcal{A}\rightarrow \mathcal{C}$ indicating the source of $\mu$. Given the expected rewards $\mu_k$ and its source $c(\mu_k)=j$, the $m$th sample of rewards $x_{km}$ from arm $k$ follow a distribution $g_k(,\theta_k)$, parameterized by $\theta_k$
+\begin{equation}
+x_{km}|\mu_k,c(\mu_k) = j \sim g_k(x_{km},\theta_k)
+\end{equation}
+Given data matrix $X$, where the $m$th sample on $k$th arm is $x_{km}$. Denote $n_k$ to be number of samples we have for arm $k$. The posterior of $\mu_k$ given its source would be
+\begin{equation}
+f(\mu_k|X,c(\mu_k)=j) \sim f_j(\mu_k,\alpha_j) \prod\limits_{m=1}^{n_k} g_k(x_{km},\theta_k)
+\end{equation}
+Uncondition on the label function, the posterior of the expected rewards would be a mixture distribution, with each model given by the conditioned posterior
+\begin{equation}
+f(\mu|X)\sim \sum\limits_{j=1}^C \pi_j f_j(\mu,\alpha_j)\prod\limits_{m=1}^{n_k} g_k(x_{km},\mu_k,\theta_k)
+\end{equation}
+For simplicity, use $\phi_{jk}$ to denote the posterior distribution of $\mu|c(\mu)=j$. Then from above, then we would get
+\begin{equation}
+\phi_{jk} = f_j(\mu_k,\alpha_j)\prod\limits_{m=1}^{n_k}g_k(x_{km},\mu_k,\theta_k)
+\end{equation} Our method would first estimate all the model parameter $\alpha_j$ and arm parameter $\mu_k,\theta_k$ from the given data matrix $X$. Then, treat each model as an arm, first choose a model, then choose the best arm generated from this model. For estimating the parameters, we use the Expectation-Maximization methods to maximize the posterior distribution given the data. 
+
+\subsection{MAP treatment}
+Most mixture model estimation problems deal with the standard mixture model, while our model introduce an extra layer of distribution. Here, we maximize our posterior mixture likelihood, and show that it naturally fits into the standard Expectation Maximization method.  \\
+For all the rewards $\mu_k,k\in 1,2,..,K$, their joint posetrior distribution would be the product of their densities
+\begin{equation}
+f(\mu|X) \sim \prod\limits_{k=1}^K [\sum\limits_{j=1}^C \pi_j \phi_{jk}]
+\end{equation}
+To maximize the posterior likelihood, we can maximize the posterior $\log$ likelihood. Let $l(X) = \log f(\mu|X) $. Introduce a weight to simplify notation,
+\begin{equation}
+w_{jk} = \frac{\pi_j \phi_{jk}}{ \sum\limits_{j=1}^C \pi_j \phi_{jk} }
+\end{equation}
+To max the posterior density of the above model, both the model parameter $\alpha_j,\pi_j$ and arm parameter $\mu_k,\theta_k$ can be estimated from the estimating equation
+\begin{equation}
+\frac{\partial l}{\partial \alpha_j} = \sum\limits_{k=1}^K w_{jk} \frac{\partial \log \phi_{jk}}{\partial \alpha_j} = 0
+\end{equation}
+\begin{equation}
+\frac{\partial l}{\partial \mu_k} = \sum\limits_{j=1}^{C} w_{jk} \frac{\partial \log \phi_{jk}}{\partial \mu_k} = 0
+\end{equation}
+\begin{equation}
+\frac{\partial l}{\partial \theta_k} = \sum\limits_{j=1}^C w_{jk} \frac{\partial \log \phi_{jk}}{\partial \theta_k} =0
+\end{equation}
+Substitute the expression for $\phi_{jk}$, and notice the fact that $\sum\limits_{j=1}^C w_{jk} =1$. The above estimating equations can be simplified as
+\begin{equation}
+\frac{\partial l}{\partial\alpha_j} = \sum\limits_{k=1}^K w_{jk} \frac{\partial \log f_j(\mu_k,\alpha_j)}{\partial \alpha_j} = 0
+\end{equation}
+\begin{equation}
+\frac{\partial l}{\partial \theta_k} = \sum\limits_{m=1}^{n_k} \frac{\partial \log g_k(x_{km},\mu_k,\theta_k)}{\partial \theta_k} = 0
+\end{equation}
+\begin{equation}
+\frac{\partial l}{\partial \mu_k} = \sum\limits_{j=1}^C w_{jk} \frac{\partial \log f_j(\mu_k,\alpha_j)}{\partial \mu_k} + \sum\limits_{m=1}^{n_k} \frac{\partial \log g_k(x_{km},\mu_k,\theta_k)}{\partial \mu_k} = 0
+\end{equation}
+Denote $\hat{\mu},\hat{\alpha},\hat{\theta}$ to be the estimator from the above estimating equations. For the "arm parameter" $\theta$, the estimator is the Maximum Likelihood Estimator using reward samples from this arm. The $\mu_k$ and $\alpha_j$ estimation involves the weights $w_{jk}$. We can solve this optimization sub-problem by the Expectation Maximization method, where we iteratively update the parameters $\mu,\alpha$ and the weights $w$.
+
+\subsection{Computational Complexity}
+In the above treatment of estimating all parameters in our mixture model, we have to use all samples for all arms at each time step. To update the weights $w$, we would have $K$ function evaluations. At time $t$, with a new reward sample from arm $a_t$. We can use our estimated parameters from the previous step as starting point for the MAP iterative estimating algorithm. In our tests, the convergence would happen within 4 or 5 steps. Therefore, the computational cost in each time step is $O(K)$ for our method. \\
+However, online estimation of mixture model is itself an open problem. Efficient methods has been proposed\citep{lin},\citep{onlinemixture}. In further work, we can hopefully reduce the computational cost to $C$, rather than $K$ by incorporating the recent advances in mixture model estimation.
+
+\section{  Two Level Algorithm for Clusters and Arms  }
+With the estimated parameters, we propose a two level algorithm. First, we use a UCB-like index to choose a promixing cluster at each time step, then, we choose an arm inside that cluster. 
+\subsection{Selection of Cluster}
+For clusters $1,2,..,C$, we build a confidence interval from the estimated parameters. Write 
+\begin{equation}
+Q_j = Q(\alpha_j,q),\forall j\in 1,2,..,C
+\end{equation}
+With $q$ being some small number. The index $Q$ is the $q$th quantile of the estimated distribution $f$. At each time step, we choose the cluster with the maximum $Q$.
+
+\subsection{Selection of Arm}
+For the selection of arms, we use the posterior distribution of $\mu_k$ to build a bayes-ucb index for arm $k$ following the Bayes ucb paper\citep{bayesucb}. The bayes ucb index is 
+\begin{equation}
+q_k = Q(1-\frac{1}{t(\log n)^q,\lambda_k^{t-1}})
+\end{equation}
+We choose the arm with the maximum bayes-ucb index. \\
+
+\begin{algorithm}[h]
+\SetAlgoLined
+\begin{algorithmic}
+\STATE \textbf{Running:}
+\For{$ t\in 1,2,...,T $}{
+	\STATE $C_t \gets argmax( Q_j ) $
+	\STATE $a_t \gets argmax(q_k) $, from within $C_t$ 
+	\STATE Observe $x_{a_t}$
+	\STATE Update Estimate $\alpha,\beta$
+}
+\end{algorithmic}
+\caption{ Two Level Mixture Algorithm for Bandits }
+\end{algorithm}
+
+
+\section{Numerical Experiments}
+Our test our algorithm and compare it to usual ucb algorithm on two simulated experiments. One for continuous rewards, where we assume a gaussian mixture prior. The other on binary rewards, where we assume a beta mixture prior.
+\subsection{Continuous Rewards}
+In this experiment, we generate a problem with $1000$ arms. The reward vector $\mu$ is simulated from a gaussian mixture model.Using $\alpha,\beta$ to denote the prior mean and variance in the model. The prior is then
+\begin{equation}
+f(\mu,\alpha,\beta) \sim \sum\limits_{j=1}^C \pi_j f_j(\mu,\alpha_j,\beta_j), f_j \sim \mathcal{N}(\alpha_j,\beta_j^2)
+\end{equation} 
+Our goal would be to first find the best "model" $f^*$ among the $f_j's$, the proceed to select the best arm generated from this model. For the $k$th arm, given the reward $\mu_k$, the samples of rewards the algorithm observes follows another gaussian distribution
+\begin{equation}
+x|(mu_k,c(\mu)=j) \sim g_k(x,\mu_k,\sigma_k), g_k \sim \mathcal{N}(\mu_k,\sigma_k^2)
+\end{equation}
+In our simulation experiment, we set $\alpha = \{1,2,3,4,5\},\beta = 0.25,\sigma=0.5$. Then some arms will naturally be closer to each other. Following the EM algorithm, we iteratively update the parameter estimation and the weights.
+
+
+\subsection{Binary Rewards}
+
+\section{Summary and Future Work}
+In our project, we proposed a mixture model to discover similarity between arms. We showed that by clustering the arms into clusters, we can find the optimal arm faster by first narrowing down to a promising clsuter. In the furture, we hope to find appropriate online algroithms for the estimation of the parameters to decrease computational load. In our method, all parameters are estimated using collected samples of rewards. If we know in advance some arms are very close, we can encode our information by setting constraints on some parameters inside our model. A model that encodes known information and updates the knowledge using new samples would intuitively outperform our entirely online method. 
+
+\bibliography{mixture}
+\bibliographystyle{plain}
+
+\end{document}
